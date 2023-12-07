@@ -1,68 +1,83 @@
-package main
+package sample
 
 import (
 	"fmt"
 	"net"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
 )
 
-// Create a buffer to read data from the listening port
-var Buffer = make([]byte, 1024)
+const bufferSize = 1024
 
-// Create a packet forwarder
 func fwdPackets(data []byte, destination string) {
-
-	for {
-		fwdData, err := net.Dial("udp", destination)
-		if err != nil {
-			fmt.Printf("Error communicating with destination %s", destination)
-		}
-		_, err = fwdData.Write(data)
-		if err != nil {
-			fmt.Printf("Error forwarding packets to destination")
-		}
-		continue
+	fwdData, err := net.Dial("udp", destination)
+	if err != nil {
+		fmt.Printf("Error communicating with destination %s: %s\n", destination, err)
+		return
 	}
+	defer fwdData.Close()
+
+	_, err = fwdData.Write(data)
+	if err != nil {
+		fmt.Printf("Error forwarding packets to destination: %s\n", err)
+	}
+
 }
 
-func readToBuffer(conn net.Conn, destination string) {
+func handleConnection(conn *net.UDPConn, destination string, wg *sync.WaitGroup) {
 	defer conn.Close()
+	defer wg.Done()
+
+	buffer := make([]byte, bufferSize)
 
 	for {
-		// Read data from the connection
-		n, err := conn.Read(Buffer)
+		n, err := conn.Read(buffer)
 		if err != nil {
 			fmt.Println("Error reading:", err)
-			continue
+			break
 		}
-		go fwdPackets(Buffer[:n], destination)
+
+		go fwdPackets(buffer[:n], destination)
 	}
 }
 
-func listenOnPort(listen net.Listener) net.Conn {
-	for {
-		// Accept incoming connection
-		conn, err := listen.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-		return conn
+func Replicate(srcPort, destination string) {
+	udpAddr, err := net.ResolveUDPAddr("udp", fmt.Sprintf("localhost:%s", srcPort))
+	if err != nil {
+		fmt.Println("Error resolving UDP address:", err)
+		return
 	}
-}
 
-func Replicate(src_port, destination string) {
-
-	// Start listening for incoming connections
-	listener, err := net.Listen("udp", fmt.Sprintf(":%s", src_port))
+	listener, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
 		fmt.Println("Error listening:", err)
+		return
 	}
 	defer listener.Close()
 
-	fmt.Printf("Server listening on port %s ", src_port)
+	fmt.Printf("Server listening on port %s\n", srcPort)
 
-	conn := listenOnPort(listener)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go handleConnection(listener, destination, &wg)
 
-	go readToBuffer(conn, destination)
+	// Wait for a termination signal to gracefully shutdown
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	<-sigCh
 
+	// Signal received, perform cleanup and exit gracefully
+	fmt.Println("Shutting down...")
+	listener.Close()
+	wg.Wait()
+	fmt.Println("Server stopped.")
+}
+
+func Test() {
+	srcPort := "2055"                 // Set your source port
+	destination := "10.42.15.30:2055" // Set your destination address
+
+	Replicate(srcPort, destination)
 }
