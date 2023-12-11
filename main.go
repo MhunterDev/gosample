@@ -1,9 +1,9 @@
 package main
 
 import (
-	sample "github.com/MhunterDev/gosample/src/replicate"
+	web "github.com/MhunterDev/gosample/src/api"
 )
 
 func main() {
-	sample.Test()
+	web.Router()
 }

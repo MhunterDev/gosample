@@ -10,11 +10,11 @@
     <body> 
         <p>
             <br>
-            <form title="Create-Profile" id="profile-form" class="profile-form">
-                <input type="text" id="listen-port" title="listen-port" placeholder="Enter Listening Port">
-                <input type="text" id="collector-ip" title="collector-ip" placeholder="Enter Destination IP">
-                <input type="text" id="collector-port" title="collector-port" placeholder="Enter Destination Port">
-                <input type="submit" value="Submit" id="submit" title="Submit" formenctype="multipart/form-data" formmethod="post" formaction="/" formtarget="">
+            <form title="Profile" id="profile" class="profile" >
+                <input type="text" id="listenPort" title="listenPort" name="listenPort" class="listenPort" placeholder="Enter Listening Port" binding="required" json="listenPort" ><br>
+                <input type="text" id="destinationIp" title="destinationIp" class="destinationIp" placeholder="Enter Destination IP" binding="required" json="destinationIp"><br>
+                <input type="text" id="destinationPort" title="destinationIp" class="destinationIp" placeholder="Enter Destination Port" json="destinationPort" binding="required"><br>
+                <input type="submit" value="Submit" id="submit" title="Submit" formenctype="application/JSON" formmethod="post" formaction="/" formtarget="">
             </form>
         </p>
     </body>
