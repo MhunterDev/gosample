@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
 )
 
 type Profile struct {
@@ -18,25 +18,28 @@ const logfile = "/etc/mhd/gosample/logs/api.log"
 var Logfile, LogfileErr = os.Create(logfile)
 var logs = log.New(Logfile, "::: API :::", log.Lshortfile)
 
-func addProfile(c *gin.Context) {
+func addProfile(c *fiber.Ctx) error {
 	var profile Profile
-	err := c.Bind(&profile)
+	err := c.BodyParser(&profile)
 	if err != nil {
-		logs.Println(err)
+		logs.Printf("%s", err)
 	}
 	logs.Printf("%s,%s,%s", profile.ListenPort, profile.DestinationIp, profile.DestinationPort)
+	return nil
 }
 
-func handleMain(c *gin.Context) {
-	c.HTML(200, "main.html", nil)
+func handleMain(c *fiber.Ctx) error {
+	return c.Render("/etc/mhd/gosample/.public/html/main.html", fiber.Map{}, "html")
 }
 
 func Router() {
 
-	router := gin.Default()
-	router.LoadHTMLFiles("/etc/mhd/gosample/.public/html/main.html")
-	router.GET("/", handleMain)
-	router.POST("/", addProfile)
+	router := fiber.New()
 
-	router.Run("localhost:8080")
+	router.Static("/static/css", "/etc/mhd/.public/static/css/style.css")
+
+	router.Add("GET", "/", handleMain)
+	router.Add("POST", "/", addProfile)
+
+	router.Listen("localhost:8080")
 }
