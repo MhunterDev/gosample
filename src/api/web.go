@@ -2,9 +2,11 @@ package web
 
 import (
 	"log"
+	"net/http"
 	"os"
 
-	"github.com/gofiber/fiber/v2"
+	"github.com/MhunterDev/gosample/src/db"
+	"github.com/gin-gonic/gin"
 )
 
 type Profile struct {
@@ -13,33 +15,42 @@ type Profile struct {
 	DestinationPort string `json:"destinationPort" form:"destinatioPort" xml:"destinationPort"`
 }
 
-const logfile = "/etc/mhd/gosample/logs/api.log"
+const logfile = "/etc/mhd/gosample/logs/replicate.log"
 
 var Logfile, LogfileErr = os.Create(logfile)
 var logs = log.New(Logfile, "::: API :::", log.Lshortfile)
 
-func addProfile(c *fiber.Ctx) error {
-	var profile Profile
-	err := c.BodyParser(&profile)
-	if err != nil {
-		logs.Printf("%s", err)
+func addProfile(c *gin.Context) {
+	var p Profile
+	c.Bind(&p)
+
+	var response struct {
+		message string
 	}
-	logs.Printf("%s,%s,%s", profile.ListenPort, profile.DestinationIp, profile.DestinationPort)
-	return nil
+
+	err := db.AddProfile(p.ListenPort, p.DestinationIp, p.DestinationPort)
+	if err != nil {
+		response.message = "Error adding profile"
+		c.JSON(http.StatusBadGateway, response)
+		return
+	}
+	response.message = "Profile added"
+	c.JSON(200, response)
 }
 
-func handleMain(c *fiber.Ctx) error {
-	return c.Render("/etc/mhd/gosample/.public/html/main.html", fiber.Map{}, "html")
+func handleMain(c *gin.Context) {
+	var response struct {
+		message string
+	}
+	response.message = "Api service is running on port 5000"
+	c.JSON(202, nil)
 }
 
 func Router() {
 
-	router := fiber.New()
+	router := gin.Default()
+	router.Handle("GET", "/api", handleMain)
+	router.Handle("POST", "/api/add/profiles", addProfile)
 
-	router.Static("/static/css", "/etc/mhd/.public/static/css/style.css")
-
-	router.Add("GET", "/", handleMain)
-	router.Add("POST", "/", addProfile)
-
-	router.Listen("localhost:8080")
+	router.Run("localhost:5000")
 }
